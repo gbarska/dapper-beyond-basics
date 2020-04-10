@@ -1,0 +1,12 @@
+.vscode/*
+bin/
+obj/
+arquivos/
+*.db
+appsettings.Development*.json
+**/bin/Debug/
+**/bin/Release/
+Debug/
+Release/
+wwwroot
+.vs
