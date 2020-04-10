@@ -1,9 +1,11 @@
-﻿using DataLayer;
+using DataLayer;
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Runner
 {
@@ -11,21 +13,79 @@ namespace Runner
     {
         private static IConfigurationRoot config;
 
-        static void Main(string[] args)
+        static void preExMain(string[] args)
         {
             Initialize();
 
             //Get_all_should_return_6_results();
 
-            var id = Insert_should_assign_identity_to_new_entity();
-            Find_should_retrieve_existing_entity(id);
-            Modify_should_update_existing_entity(id);
-            Delete_should_remove_entity(id);
+            // var id = Insert_should_assign_identity_to_new_entity();
+            // Find_should_retrieve_existing_entity(id);
+            // Modify_should_update_existing_entity(id);
+            // Delete_should_remove_entity(id);
 
             //var repository = CreateRepository();
             //var mj = repository.GetFullContact(1);
             //mj.Output();
+            // List_support_should_produce_correct_results();
+            // Dynamic_support_should_produce_correct_results();
+            // Bulk_insert_should_insert_4_rows();
+            
+            //GetIllinoisAddresses();
 
+
+             Get_all_should_return_6_results_with_addresses();
+
+            Get_all_should_return_6_results_mysql();
+        }
+
+        static async Task Main(string[] args)
+        {
+            Initialize();
+
+            await Get_all_should_return_6_results_async();
+        }
+
+
+        static async Task Get_all_should_return_6_results_async()
+        {
+            // arrange
+            var repository = CreateRepositoryEx();
+
+            // act
+            var contacts = await repository.GetAllAsync();
+
+            // assert
+            Console.WriteLine($"Count: {contacts.Count}");
+            Debug.Assert(contacts.Count == 6);
+            contacts.Output();
+        }
+
+        static void Get_all_should_return_6_results_mysql()
+        {
+            var repository = new ContactRepositoryMySql(config.GetConnectionString("MySqlConnection"));
+
+            // act
+            var contacts = repository.GetAll();
+
+            // assert
+            Console.WriteLine($"Count: {contacts.Count}");
+            Debug.Assert(contacts.Count == 6);
+            contacts.Output();
+        }
+
+        static void Get_all_should_return_6_results_with_addresses()
+        {
+            var repository = CreateRepositoryEx();
+
+            // act
+            var contacts = repository.GetAllContactsWithAddresses();
+
+            // assert
+            Console.WriteLine($"Count: {contacts.Count}");
+            contacts.Output();
+            Debug.Assert(contacts.Count == 6);
+            Debug.Assert(contacts.First().Addresses.Count == 2);
         }
 
         static void Delete_should_remove_entity(int id)
@@ -44,6 +104,39 @@ namespace Runner
             Debug.Assert(deletedEntity == null);
             Console.WriteLine("*** Contact Deleted ***");
         }
+
+        static void GetIllinoisAddresses()
+        {
+            // arrange
+            var repository = CreateRepositoryEx();
+
+            // act
+            var addresses = repository.GetAddressesByState(17);
+
+            // assert
+            Debug.Assert(addresses.Count == 2);
+            addresses.Output();
+        }
+        static void Bulk_insert_should_insert_4_rows()
+        {
+            // arrange
+            var repository = CreateRepositoryEx();
+            var contacts = new List<Contact>
+            {
+                new Contact { FirstName = "Charles", LastName = "Barkley" },
+                new Contact { FirstName = "Scottie", LastName = "Pippen" },
+                new Contact { FirstName = "Tim", LastName = "Duncan" },
+                new Contact { FirstName = "Patrick", LastName = "Ewing" }
+            };
+
+            // act
+            var rowsAffected = repository.BulkInsertContacts(contacts);
+
+            // assert
+            Console.WriteLine($"Rows inserted: {rowsAffected}");
+            Debug.Assert(rowsAffected == 4);
+        }
+
 
         static void Modify_should_update_existing_entity(int id)
         {
@@ -120,6 +213,31 @@ namespace Runner
             Console.WriteLine($"New ID: {contact.Id}");
             return contact.Id;
         }
+        static void Dynamic_support_should_produce_correct_results()
+        {
+            // arrange
+            var repository = CreateRepositoryEx();
+
+            // act
+            var contacts = repository.GetDynamicContactsById(1, 2, 4);
+
+            // assert
+            Debug.Assert(contacts.Count == 3);
+            Console.WriteLine($"First FirstName is: {contacts.First().FirstName}");
+            contacts.Output();
+        }
+        static void List_support_should_produce_correct_results()
+        {
+            // arrange
+            var repository = CreateRepositoryEx();
+
+            // act
+            var contacts = repository.GetContactsById(1, 2, 4);
+
+            // assert
+            Debug.Assert(contacts.Count == 3);
+            contacts.Output();
+        }
 
         static void Get_all_should_return_6_results()
         {
@@ -145,8 +263,15 @@ namespace Runner
 
         private static IContactRepository CreateRepository()
         {
-            return new ContactRepository(config.GetConnectionString("DefaultConnection"));
+            // return new ContactRepository(config.GetConnectionString("DefaultConnection"));
             //return new ContactRepositoryContrib(config.GetConnectionString("DefaultConnection"));
+            return new ContactRepositorySP(config.GetConnectionString("DefaultConnection"));
+
+        }
+
+        private static ContactRepositoryEx CreateRepositoryEx()
+        {
+            return new ContactRepositoryEx(config.GetConnectionString("DefaultConnection"));
         }
     }
 }
